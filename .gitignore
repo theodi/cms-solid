@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Coverage reports
+coverage/
+
+# Logs
+*.log
+moderation-audit.log
+moderation-audit.jsonl
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+test-image.jpg
+test-video.mp4
+
+# npm
+npm-debug.log*
+*.backup
+test.jpg

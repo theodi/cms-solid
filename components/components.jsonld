@@ -1,0 +1,334 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/componentsjs/^5.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@solid/community-server/^7.0.0/components/context.jsonld",
+    {
+      "source": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#source"
+      },
+      "nudityThreshold": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#nudityThreshold"
+      },
+      "violenceThreshold": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#violenceThreshold"
+      },
+      "weaponThreshold": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#weaponThreshold"
+      },
+      "alcoholThreshold": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#alcoholThreshold"
+      },
+      "drugsThreshold": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#drugsThreshold"
+      },
+      "offensiveThreshold": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#offensiveThreshold"
+      },
+      "selfharmThreshold": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#selfharmThreshold"
+      },
+      "gamblingThreshold": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#gamblingThreshold"
+      },
+      "tobaccoThreshold": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#tobaccoThreshold"
+      },
+      "textSexualThreshold": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textSexualThreshold"
+      },
+      "textDiscriminatoryThreshold": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textDiscriminatoryThreshold"
+      },
+      "textInsultingThreshold": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textInsultingThreshold"
+      },
+      "textViolentThreshold": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textViolentThreshold"
+      },
+      "textToxicThreshold": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textToxicThreshold"
+      },
+      "textSelfharmThreshold": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textSelfharmThreshold"
+      },
+      "enabledChecks": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#enabledChecks"
+      },
+      "enabledTextChecks": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#enabledTextChecks"
+      },
+      "enabledVideoChecks": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#enabledVideoChecks"
+      },
+      "auditLogEnabled": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#auditLogEnabled"
+      },
+      "auditLogPath": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#auditLogPath"
+      }
+    }
+  ],
+  "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid",
+  "@type": "Module",
+  "requireName": "cms-solid",
+  "components": [
+    {
+      "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler",
+      "@type": "Class",
+      "requireElement": "ModerationOperationHandler",
+      "extends": "css:dist/http/ldp/OperationHandler.jsonld#OperationHandler",
+      "comment": "An operation handler that wraps another handler for moderation purposes with configurable thresholds.",
+      "parameters": [
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#source",
+          "comment": "The source operation handler to wrap.",
+          "required": true,
+          "unique": true
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#nudityThreshold",
+          "comment": "Threshold for nudity detection (0-1). Default: 0.5",
+          "required": false,
+          "unique": true,
+          "range": "xsd:double",
+          "default": 0.5
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#violenceThreshold",
+          "comment": "Threshold for violence/gore detection (0-1). Default: 0.5",
+          "required": false,
+          "unique": true,
+          "range": "xsd:double",
+          "default": 0.5
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#weaponThreshold",
+          "comment": "Threshold for weapon detection (0-1). Default: 0.5",
+          "required": false,
+          "unique": true,
+          "range": "xsd:double",
+          "default": 0.5
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#alcoholThreshold",
+          "comment": "Threshold for alcohol detection (0-1). Default: 0.8",
+          "required": false,
+          "unique": true,
+          "range": "xsd:double",
+          "default": 0.8
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#drugsThreshold",
+          "comment": "Threshold for drugs detection (0-1). Default: 0.5",
+          "required": false,
+          "unique": true,
+          "range": "xsd:double",
+          "default": 0.5
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#offensiveThreshold",
+          "comment": "Threshold for offensive symbols detection (0-1). Default: 0.5",
+          "required": false,
+          "unique": true,
+          "range": "xsd:double",
+          "default": 0.5
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#selfharmThreshold",
+          "comment": "Threshold for self-harm detection (0-1). Default: 0.3",
+          "required": false,
+          "unique": true,
+          "range": "xsd:double",
+          "default": 0.3
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#gamblingThreshold",
+          "comment": "Threshold for gambling detection (0-1). Default: 0.5",
+          "required": false,
+          "unique": true,
+          "range": "xsd:double",
+          "default": 0.5
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#tobaccoThreshold",
+          "comment": "Threshold for tobacco detection (0-1). Default: 0.5",
+          "required": false,
+          "unique": true,
+          "range": "xsd:double",
+          "default": 0.5
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textSexualThreshold",
+          "comment": "Threshold for sexual text content (0-1). Default: 0.5",
+          "required": false,
+          "unique": true,
+          "range": "xsd:double",
+          "default": 0.5
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textDiscriminatoryThreshold",
+          "comment": "Threshold for discriminatory text (0-1). Default: 0.5",
+          "required": false,
+          "unique": true,
+          "range": "xsd:double",
+          "default": 0.5
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textInsultingThreshold",
+          "comment": "Threshold for insulting text (0-1). Default: 0.5",
+          "required": false,
+          "unique": true,
+          "range": "xsd:double",
+          "default": 0.5
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textViolentThreshold",
+          "comment": "Threshold for violent text (0-1). Default: 0.5",
+          "required": false,
+          "unique": true,
+          "range": "xsd:double",
+          "default": 0.5
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textToxicThreshold",
+          "comment": "Threshold for toxic text (0-1). Default: 0.5",
+          "required": false,
+          "unique": true,
+          "range": "xsd:double",
+          "default": 0.5
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textSelfharmThreshold",
+          "comment": "Threshold for self-harm text (0-1). Default: 0.3",
+          "required": false,
+          "unique": true,
+          "range": "xsd:double",
+          "default": 0.3
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#enabledChecks",
+          "comment": "Comma-separated list of image checks to enable. Default: nudity,gore,wad,offensive",
+          "required": false,
+          "unique": true,
+          "range": "xsd:string"
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#enabledTextChecks",
+          "comment": "Comma-separated list of text checks to enable. Default: sexual,discriminatory,insulting,violent,toxic,self-harm,personal",
+          "required": false,
+          "unique": true,
+          "range": "xsd:string"
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#enabledVideoChecks",
+          "comment": "Comma-separated list of video checks to enable. Default: nudity,gore,wad,offensive,self-harm,gambling,tobacco",
+          "required": false,
+          "unique": true,
+          "range": "xsd:string"
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#auditLogEnabled",
+          "comment": "Whether to enable audit logging. Default: true",
+          "required": false,
+          "unique": true,
+          "range": "xsd:boolean",
+          "default": true
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#auditLogPath",
+          "comment": "Path to the audit log file. Default: ./moderation-audit.log",
+          "required": false,
+          "unique": true,
+          "range": "xsd:string"
+        }
+      ],
+      "constructorArguments": [
+        { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#source" },
+        {
+          "fields": [
+            {
+              "keyRaw": "nudityThreshold",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#nudityThreshold" }
+            },
+            {
+              "keyRaw": "violenceThreshold",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#violenceThreshold" }
+            },
+            {
+              "keyRaw": "weaponThreshold",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#weaponThreshold" }
+            },
+            {
+              "keyRaw": "alcoholThreshold",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#alcoholThreshold" }
+            },
+            {
+              "keyRaw": "drugsThreshold",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#drugsThreshold" }
+            },
+            {
+              "keyRaw": "offensiveThreshold",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#offensiveThreshold" }
+            },
+            {
+              "keyRaw": "selfharmThreshold",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#selfharmThreshold" }
+            },
+            {
+              "keyRaw": "gamblingThreshold",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#gamblingThreshold" }
+            },
+            {
+              "keyRaw": "tobaccoThreshold",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#tobaccoThreshold" }
+            },
+            {
+              "keyRaw": "textSexualThreshold",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textSexualThreshold" }
+            },
+            {
+              "keyRaw": "textDiscriminatoryThreshold",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textDiscriminatoryThreshold" }
+            },
+            {
+              "keyRaw": "textInsultingThreshold",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textInsultingThreshold" }
+            },
+            {
+              "keyRaw": "textViolentThreshold",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textViolentThreshold" }
+            },
+            {
+              "keyRaw": "textToxicThreshold",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textToxicThreshold" }
+            },
+            {
+              "keyRaw": "textSelfharmThreshold",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textSelfharmThreshold" }
+            },
+            {
+              "keyRaw": "enabledChecks",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#enabledChecks" }
+            },
+            {
+              "keyRaw": "enabledTextChecks",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#enabledTextChecks" }
+            },
+            {
+              "keyRaw": "enabledVideoChecks",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#enabledVideoChecks" }
+            },
+            {
+              "keyRaw": "auditLogEnabled",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#auditLogEnabled" }
+            },
+            {
+              "keyRaw": "auditLogPath",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#auditLogPath" }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

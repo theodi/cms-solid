@@ -1,0 +1,42 @@
+{
+  "name": "cms-solid",
+  "version": "1.0.0",
+  "description": "Moderation plugin for Community Solid Server",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "lsd:module": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid",
+  "lsd:components": "components/components.jsonld",
+  "lsd:contexts": {
+    "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/^1.0.0/components/context.jsonld": "components/context.jsonld"
+  },
+  "lsd:importPaths": {
+    "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/^1.0.0/components/": "components/",
+    "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/^1.0.0/config/": "config/"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "test:unit": "jest --testPathPatterns=test/unit",
+    "test:integration": "jest --testPathPatterns=test/integration",
+    "test:coverage": "jest --coverage",
+    "test:watch": "jest --watch"
+  },
+  "keywords": [
+    "solid",
+    "css",
+    "moderation",
+    "plugin"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@solid/community-server": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^18.0.0",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.6",
+    "typescript": "^5.0.0"
+  }
+}
