@@ -10,6 +10,7 @@ A Community Solid Server (CSS) plugin that provides content moderation for uploa
 - **Configurable Thresholds**: Set custom thresholds via Components.js config or environment variables
 - **Audit Logging**: JSON Lines audit log with pod name and agent (WebID) tracking
 - **Fail-Open Policy**: API errors allow uploads to proceed (configurable)
+- **MIME Type Bypass Protection**: Magic byte detection, extension validation, and unknown type handling
 
 ## Project Structure
 
@@ -228,10 +229,78 @@ MODERATION_CHECKS=nudity,gore,wad,offensive
 MODERATION_TEXT_CHECKS=sexual,discriminatory,insulting,violent,toxic,self-harm,personal
 MODERATION_VIDEO_CHECKS=nudity,gore,wad,offensive,self-harm,gambling,tobacco
 
+# Security options (MIME type bypass protection)
+MODERATION_REJECT_UNKNOWN_TYPES=true    # Reject unknown/unrecognized MIME types
+MODERATION_VALIDATE_EXTENSIONS=true     # Validate file extension matches Content-Type
+MODERATION_MODERATE_UNKNOWN_TYPES=true  # Detect actual type via magic bytes and moderate
+
 # Audit logging
 MODERATION_AUDIT_LOG=true
 MODERATION_AUDIT_LOG_PATH=./moderation-audit.log
 ```
+
+## Security: MIME Type Bypass Protection
+
+The plugin includes defenses against attackers trying to bypass moderation by using fake Content-Type headers (e.g., `Content-Type: dont/moderate+jpeg`).
+
+### Security Options
+
+| Option | Config Key | Env Var | Default | Description |
+|--------|-----------|---------|---------|-------------|
+| Magic Byte Detection | N/A | N/A | Always on | Verifies file magic bytes match claimed Content-Type |
+| Reject Unknown Types | `rejectUnknownTypes` | `MODERATION_REJECT_UNKNOWN_TYPES` | `false` | Reject uploads with unrecognized MIME types |
+| Extension Validation | `validateExtensions` | `MODERATION_VALIDATE_EXTENSIONS` | `false` | Reject if file extension doesn't match Content-Type |
+| Moderate Unknown Types | `moderateUnknownTypes` | `MODERATION_MODERATE_UNKNOWN_TYPES` | `false` | Detect actual type via magic bytes and moderate anyway |
+| Moderate RDF as Text | `moderateRdfAsText` | `MODERATION_MODERATE_RDF_AS_TEXT` | `false` | Extract and moderate text content from RDF/Linked Data |
+
+### Recommended Security Configuration
+
+For maximum security, enable all options:
+
+```json
+{
+  "@id": "urn:solid-server:default:ModerationOperationHandler",
+  "@type": "cms-solid:ModerationOperationHandler",
+  "source": { "@id": "urn:solid-server:default:OperationHandler" },
+  "rejectUnknownTypes": true,
+  "validateExtensions": true,
+  "moderateUnknownTypes": true,
+  "moderateRdfAsText": true
+}
+```
+
+### How It Works
+
+1. **Magic Byte Detection** (always active): When moderating images/videos, the handler verifies the first bytes match the expected format (e.g., JPEG starts with `FFD8FF`)
+
+2. **Reject Unknown Types**: If enabled, any Content-Type not in the allowed list (images, video, text, RDF, Solid formats) is rejected with 403 Forbidden
+
+3. **Extension Validation**: If enabled, cross-checks the file extension against Content-Type (e.g., `.jpg` must have `image/jpeg`)
+
+4. **Moderate Unknown Types**: If enabled and the Content-Type is unrecognized, the handler uses magic bytes to detect the actual type and moderates it appropriately
+
+5. **Moderate RDF as Text**: If enabled, extracts text content (string literals, labels, comments) from RDF/Linked Data formats and sends it to the text moderation API
+
+### RDF/Linked Data Text Moderation
+
+When `moderateRdfAsText` is enabled, the plugin extracts text content from the following formats:
+
+| Format | MIME Type | Extraction Method |
+|--------|-----------|-------------------|
+| Turtle | `text/turtle` | String literals (`"text"`, `'text'`) |
+| JSON-LD | `application/ld+json` | All string values (excluding URLs) |
+| N-Triples | `application/n-triples` | String literals |
+| N-Quads | `application/n-quads` | String literals |
+| RDF/XML | `application/rdf+xml` | Text content between tags |
+| SPARQL Query | `application/sparql-query` | String literals and comments |
+| SPARQL Update | `application/sparql-update` | String literals and comments |
+| SPARQL Results JSON | `application/sparql-results+json` | Literal binding values |
+| SPARQL Results XML | `application/sparql-results+xml` | Literal element content |
+
+This catches scenarios like:
+- Turtle files containing hate speech in literal values
+- JSON-LD documents with offensive text in descriptions
+- SPARQL queries with inappropriate content in comments
 
 ## Audit Logging
 
@@ -911,11 +980,11 @@ The test suite provides comprehensive coverage of the moderation handler:
 
 | Metric | Coverage |
 |--------|----------|
-| **Statements** | 99.49% |
-| **Branches** | 96.53% |
-| **Functions** | 100% |
-| **Lines** | 100% |
-| **Total Tests** | 121 |
+| **Statements** | 95.53% (599/627) |
+| **Branches** | 90.40% (565/625) |
+| **Functions** | 100% (34/34) |
+| **Lines** | 95.62% (568/594) |
+| **Total Tests** | 186 |
 
 **Coverage by Feature:**
 
@@ -924,11 +993,16 @@ The test suite provides comprehensive coverage of the moderation handler:
 | Image Moderation | 15+ | All content types (JPEG, PNG, GIF, WebP, BMP) and violation categories |
 | Text Moderation | 15+ | Toxic, sexual, discriminatory, insulting, violent, self-harm, personal info |
 | Video Moderation | 20+ | Frame-based and summary-based processing, all video formats |
+| RDF/Linked Data | 14 | Turtle, JSON-LD, RDF/XML, SPARQL, N-Triples text extraction and moderation |
 | Request Methods | 10+ | PUT, POST, PATCH handling, GET/HEAD pass-through |
 | API Error Handling | 10+ | Fail-open policy, network errors, API failures |
 | Audit Logging | 5+ | Log entry creation, directory creation |
 | Edge Cases | 15+ | Missing data, partial responses, malformed inputs |
 | Configuration | 5+ | Custom thresholds, disabled checks |
+| Magic Byte Detection | 13 | Verifies actual file type matches claimed Content-Type |
+| Reject Unknown Types | 12 | Blocks unrecognized MIME types |
+| Extension Validation | 15 | Cross-checks file extension against Content-Type |
+| Moderate Unknown Types | 11 | Detects actual type via magic bytes and moderates |
 
 **Running Coverage Report:**
 

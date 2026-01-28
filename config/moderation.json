@@ -46,7 +46,11 @@
       "@type": "cms-solid:ModerationOperationHandler",
       "source": {
         "@id": "urn:solid-server:default:OperationHandler"
-      }
+      },
+      "rejectUnknownTypes": true,
+      "validateExtensions": true,
+      "moderateUnknownTypes": true,
+      "moderateRdfAsText": true
     }
   ]
 }

@@ -65,6 +65,18 @@
       },
       "auditLogPath": {
         "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#auditLogPath"
+      },
+      "rejectUnknownTypes": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#rejectUnknownTypes"
+      },
+      "validateExtensions": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#validateExtensions"
+      },
+      "moderateUnknownTypes": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#moderateUnknownTypes"
+      },
+      "moderateRdfAsText": {
+        "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#moderateRdfAsText"
       }
     }
   ],
@@ -240,6 +252,38 @@
           "required": false,
           "unique": true,
           "range": "xsd:string"
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#rejectUnknownTypes",
+          "comment": "Whether to reject uploads with unknown/unrecognized MIME types. Default: false",
+          "required": false,
+          "unique": true,
+          "range": "xsd:boolean",
+          "default": false
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#validateExtensions",
+          "comment": "Whether to validate that file extensions match Content-Type. Default: false",
+          "required": false,
+          "unique": true,
+          "range": "xsd:boolean",
+          "default": false
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#moderateUnknownTypes",
+          "comment": "Whether to detect actual content type via magic bytes and moderate unknown types. Default: false",
+          "required": false,
+          "unique": true,
+          "range": "xsd:boolean",
+          "default": false
+        },
+        {
+          "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#moderateRdfAsText",
+          "comment": "Whether to moderate RDF/Linked Data content as text, checking string literals for policy violations. Default: false",
+          "required": false,
+          "unique": true,
+          "range": "xsd:boolean",
+          "default": false
         }
       ],
       "constructorArguments": [
@@ -325,6 +369,22 @@
             {
               "keyRaw": "auditLogPath",
               "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#auditLogPath" }
+            },
+            {
+              "keyRaw": "rejectUnknownTypes",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#rejectUnknownTypes" }
+            },
+            {
+              "keyRaw": "validateExtensions",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#validateExtensions" }
+            },
+            {
+              "keyRaw": "moderateUnknownTypes",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#moderateUnknownTypes" }
+            },
+            {
+              "keyRaw": "moderateRdfAsText",
+              "value": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#moderateRdfAsText" }
             }
           ]
         }

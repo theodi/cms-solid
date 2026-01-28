@@ -1878,4 +1878,775 @@ describe('ModerationOperationHandler', (): void => {
       expect(mockSource.handle).toHaveBeenCalled();
     });
   });
+
+  describe('Magic Byte Detection (Content-Type Verification)', (): void => {
+    it('allows image when magic bytes match Content-Type.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      // Real JPEG magic bytes: 0xFF 0xD8 0xFF
+      const jpegMagicBytes = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.jpg', 'image/jpeg', jpegMagicBytes);
+      
+      await handler.handle(input);
+      
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('rejects image when magic bytes indicate different type than Content-Type.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      // PNG magic bytes but claiming to be JPEG
+      const pngMagicBytes = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.jpg', 'image/jpeg', pngMagicBytes);
+      
+      await expect(handler.handle(input)).rejects.toThrow(/Content-Type mismatch.*bypass content moderation/);
+    });
+
+    it('allows PNG when magic bytes match.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      // PNG magic bytes
+      const pngMagicBytes = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.png', 'image/png', pngMagicBytes);
+      
+      await handler.handle(input);
+      
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('rejects when JPEG file is claimed to be PNG.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      // JPEG magic bytes but claiming PNG
+      const jpegMagicBytes = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.png', 'image/png', jpegMagicBytes);
+      
+      await expect(handler.handle(input)).rejects.toThrow(/Content-Type mismatch/);
+    });
+
+    it('allows GIF when magic bytes match (GIF89a).', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      // GIF89a magic bytes
+      const gifMagicBytes = Buffer.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x00, 0x00]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.gif', 'image/gif', gifMagicBytes);
+      
+      await handler.handle(input);
+      
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('allows GIF when magic bytes match (GIF87a).', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      // GIF87a magic bytes
+      const gifMagicBytes = Buffer.from([0x47, 0x49, 0x46, 0x38, 0x37, 0x61, 0x00, 0x00]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.gif', 'image/gif', gifMagicBytes);
+      
+      await handler.handle(input);
+      
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('allows BMP when magic bytes match.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      // BMP magic bytes
+      const bmpMagicBytes = Buffer.from([0x42, 0x4D, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.bmp', 'image/bmp', bmpMagicBytes);
+      
+      await handler.handle(input);
+      
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('allows WebP when magic bytes match.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      // WebP magic bytes: RIFF....WEBP
+      const webpMagicBytes = Buffer.from([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.webp', 'image/webp', webpMagicBytes);
+      
+      await handler.handle(input);
+      
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('rejects when WebP file is claimed to be JPEG.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      // WebP magic bytes but claiming JPEG
+      const webpMagicBytes = Buffer.from([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.jpg', 'image/jpeg', webpMagicBytes);
+      
+      await expect(handler.handle(input)).rejects.toThrow(/Content-Type mismatch/);
+    });
+
+    it('allows files with unrecognized magic bytes to pass through.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      // Random bytes that don't match any known signature
+      const randomBytes = Buffer.from([0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.jpg', 'image/jpeg', randomBytes);
+      
+      // Should pass since we can't detect the real type
+      await handler.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('allows very small files that are too short for magic byte detection.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      // Only 4 bytes - too short for reliable detection
+      const shortBuffer = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.jpg', 'image/jpeg', shortBuffer);
+      
+      await handler.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('allows jpeg/jpg Content-Type variations.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      // JPEG magic bytes with image/jpg (instead of image/jpeg)
+      const jpegMagicBytes = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.jpg', 'image/jpg', jpegMagicBytes);
+      
+      await handler.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('rejects video when magic bytes indicate image.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeVideoResponse);
+      
+      // JPEG magic bytes but claiming MP4
+      const jpegMagicBytes = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/video.mp4', 'video/mp4', jpegMagicBytes);
+      
+      await expect(handler.handle(input)).rejects.toThrow(/Content-Type mismatch/);
+    });
+  });
+
+  describe('Reject Unknown Content Types', (): void => {
+    let handlerWithRejectUnknown: ModerationOperationHandler;
+
+    beforeEach((): void => {
+      // Create handler with rejectUnknownTypes enabled
+      handlerWithRejectUnknown = new ModerationOperationHandler(mockSource, {
+        rejectUnknownTypes: true,
+      });
+      jest.advanceTimersByTime(200);
+    });
+
+    it('rejects unknown/fake content types like dont/moderate+jpeg.', async(): Promise<void> => {
+      const buffer = Buffer.from('some data');
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/file.dat', 'dont/moderate+jpeg', buffer);
+      
+      await expect(handlerWithRejectUnknown.handle(input)).rejects.toThrow(/Content type.*is not allowed/);
+    });
+
+    it('rejects completely made-up content types.', async(): Promise<void> => {
+      const buffer = Buffer.from('some data');
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/file.xyz', 'application/x-bypass-moderation', buffer);
+      
+      await expect(handlerWithRejectUnknown.handle(input)).rejects.toThrow(/Content type.*is not allowed/);
+    });
+
+    it('allows known image types when rejectUnknownTypes is enabled.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      const jpegBuffer = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.jpg', 'image/jpeg', jpegBuffer);
+      
+      await handlerWithRejectUnknown.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('allows known text types when rejectUnknownTypes is enabled.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeTextResponse);
+      
+      const textBuffer = Buffer.from('Hello, this is safe text content.');
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/doc.txt', 'text/plain', textBuffer);
+      
+      await handlerWithRejectUnknown.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('allows Turtle RDF content (passthrough type).', async(): Promise<void> => {
+      const turtleBuffer = Buffer.from('@prefix ex: <http://example.org/> .');
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/data.ttl', 'text/turtle', turtleBuffer);
+      
+      await handlerWithRejectUnknown.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('allows JSON-LD content (passthrough type).', async(): Promise<void> => {
+      const jsonldBuffer = Buffer.from('{"@context": "http://schema.org/"}');
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/data.jsonld', 'application/ld+json', jsonldBuffer);
+      
+      await handlerWithRejectUnknown.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('allows PDF files (passthrough type).', async(): Promise<void> => {
+      const pdfBuffer = Buffer.from('%PDF-1.4');
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/doc.pdf', 'application/pdf', pdfBuffer);
+      
+      await handlerWithRejectUnknown.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('allows audio files (passthrough type).', async(): Promise<void> => {
+      const audioBuffer = Buffer.from('ID3');
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/song.mp3', 'audio/mpeg', audioBuffer);
+      
+      await handlerWithRejectUnknown.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('allows ZIP archives (passthrough type).', async(): Promise<void> => {
+      const zipBuffer = Buffer.from([0x50, 0x4B, 0x03, 0x04]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/archive.zip', 'application/zip', zipBuffer);
+      
+      await handlerWithRejectUnknown.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('allows octet-stream (generic binary passthrough).', async(): Promise<void> => {
+      const binaryBuffer = Buffer.from([0x00, 0x01, 0x02, 0x03]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/data.bin', 'application/octet-stream', binaryBuffer);
+      
+      await handlerWithRejectUnknown.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('does not reject unknown types when rejectUnknownTypes is disabled (default).', async(): Promise<void> => {
+      // Use the default handler (rejectUnknownTypes = false)
+      const buffer = Buffer.from('some data');
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/file.dat', 'dont/moderate+jpeg', buffer);
+      
+      // Should pass through without error
+      await handler.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('does not reject GET requests even with unknown types.', async(): Promise<void> => {
+      const input = createMockInput('GET', 'http://localhost:3009/alice/file.dat', 'dont/moderate+jpeg', Buffer.from(''));
+      
+      await handlerWithRejectUnknown.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+  });
+
+  describe('Extension Validation', (): void => {
+    let handlerWithExtensionValidation: ModerationOperationHandler;
+
+    beforeEach((): void => {
+      // Create handler with validateExtensions enabled
+      handlerWithExtensionValidation = new ModerationOperationHandler(mockSource, {
+        validateExtensions: true,
+      });
+      jest.advanceTimersByTime(200);
+    });
+
+    it('rejects when .jpg file has wrong Content-Type.', async(): Promise<void> => {
+      const buffer = Buffer.from('some data');
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.jpg', 'image/png', buffer);
+      
+      await expect(handlerWithExtensionValidation.handle(input)).rejects.toThrow(/does not match Content-Type/);
+    });
+
+    it('rejects when .png file has wrong Content-Type.', async(): Promise<void> => {
+      const buffer = Buffer.from('some data');
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.png', 'image/jpeg', buffer);
+      
+      await expect(handlerWithExtensionValidation.handle(input)).rejects.toThrow(/does not match Content-Type/);
+    });
+
+    it('rejects when .mp4 file claimed as image.', async(): Promise<void> => {
+      const buffer = Buffer.from('some data');
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/video.mp4', 'image/jpeg', buffer);
+      
+      await expect(handlerWithExtensionValidation.handle(input)).rejects.toThrow(/does not match Content-Type/);
+    });
+
+    it('allows .jpg file with correct image/jpeg Content-Type.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      const jpegBuffer = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.jpg', 'image/jpeg', jpegBuffer);
+      
+      await handlerWithExtensionValidation.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('allows .jpeg file with correct image/jpeg Content-Type.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      const jpegBuffer = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.jpeg', 'image/jpeg', jpegBuffer);
+      
+      await handlerWithExtensionValidation.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('allows .png file with correct image/png Content-Type.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      const pngBuffer = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.png', 'image/png', pngBuffer);
+      
+      await handlerWithExtensionValidation.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('allows .ttl file with text/turtle Content-Type.', async(): Promise<void> => {
+      const turtleBuffer = Buffer.from('@prefix ex: <http://example.org/> .');
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/data.ttl', 'text/turtle', turtleBuffer);
+      
+      await handlerWithExtensionValidation.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('allows .jsonld file with application/ld+json Content-Type.', async(): Promise<void> => {
+      const jsonldBuffer = Buffer.from('{"@context": "http://schema.org/"}');
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/data.jsonld', 'application/ld+json', jsonldBuffer);
+      
+      await handlerWithExtensionValidation.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('allows files without extension.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      const jpegBuffer = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo', 'image/jpeg', jpegBuffer);
+      
+      // No extension to validate - should pass
+      await handlerWithExtensionValidation.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('allows files with unknown extension.', async(): Promise<void> => {
+      const buffer = Buffer.from('some data');
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/file.xyz', 'application/octet-stream', buffer);
+      
+      // Unknown extension - can't validate, should pass
+      await handlerWithExtensionValidation.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('does not validate extensions when disabled (default).', async(): Promise<void> => {
+      // Use the default handler (validateExtensions = false)
+      const buffer = Buffer.from('some data');
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.jpg', 'image/png', buffer);
+      
+      // Mismatch should be allowed with default handler
+      await handler.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('rejects .html file with text/plain Content-Type.', async(): Promise<void> => {
+      const buffer = Buffer.from('<html></html>');
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/page.html', 'text/plain', buffer);
+      
+      await expect(handlerWithExtensionValidation.handle(input)).rejects.toThrow(/does not match Content-Type/);
+    });
+
+    it('allows .txt file with text/plain Content-Type.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeTextResponse);
+      
+      const textBuffer = Buffer.from('Hello, this is safe text content.');
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/doc.txt', 'text/plain', textBuffer);
+      
+      await handlerWithExtensionValidation.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('handles case-insensitive extension matching.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      const jpegBuffer = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.JPG', 'image/jpeg', jpegBuffer);
+      
+      await handlerWithExtensionValidation.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('does not validate GET requests.', async(): Promise<void> => {
+      const input = createMockInput('GET', 'http://localhost:3009/alice/photo.jpg', 'image/png', Buffer.from(''));
+      
+      await handlerWithExtensionValidation.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+  });
+
+  describe('Moderate Unknown Types by Detection', (): void => {
+    let handlerWithModerateUnknown: ModerationOperationHandler;
+
+    beforeEach((): void => {
+      // Create handler with moderateUnknownTypes enabled
+      handlerWithModerateUnknown = new ModerationOperationHandler(mockSource, {
+        moderateUnknownTypes: true,
+      });
+      jest.advanceTimersByTime(200);
+    });
+
+    it('detects and moderates JPEG image with fake Content-Type.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      // Real JPEG magic bytes but claiming to be a fake type
+      const jpegMagicBytes = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/file.dat', 'dont/moderate+jpeg', jpegMagicBytes);
+      
+      await handlerWithModerateUnknown.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+      // Verify that SightEngine API was called (moderation happened)
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    it('rejects unsafe JPEG with fake Content-Type.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockUnsafeNudityImageResponse);
+      
+      // Real JPEG magic bytes with unsafe content
+      const jpegMagicBytes = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/file.dat', 'application/x-hidden-image', jpegMagicBytes);
+      
+      await expect(handlerWithModerateUnknown.handle(input)).rejects.toThrow(/nudity/);
+    });
+
+    it('detects and moderates PNG image with fake Content-Type.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      // Real PNG magic bytes
+      const pngMagicBytes = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/file.xyz', 'application/octet-stream-fake', pngMagicBytes);
+      
+      await handlerWithModerateUnknown.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    it('passes through undetectable content.', async(): Promise<void> => {
+      // Random bytes that don't match any known signature
+      const randomBytes = Buffer.from([0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0, 0x11, 0x22]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/file.bin', 'application/x-unknown', randomBytes);
+      
+      await handlerWithModerateUnknown.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+      // No moderation API call for undetectable content
+    });
+
+    it('does not moderate allowed passthrough types.', async(): Promise<void> => {
+      // Turtle RDF content - should pass through without detection attempt
+      const turtleBuffer = Buffer.from('@prefix ex: <http://example.org/> .');
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/data.ttl', 'text/turtle', turtleBuffer);
+      
+      await handlerWithModerateUnknown.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('still moderates known image types normally.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      // Normal JPEG with correct Content-Type
+      const jpegBuffer = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/photo.jpg', 'image/jpeg', jpegBuffer);
+      
+      await handlerWithModerateUnknown.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    it('does not try to detect types when disabled (default).', async(): Promise<void> => {
+      // Use default handler (moderateUnknownTypes = false)
+      const jpegMagicBytes = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/file.dat', 'dont/moderate+jpeg', jpegMagicBytes);
+      
+      // Should pass through without moderation
+      await handler.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('handles GIF detection.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      // GIF89a magic bytes
+      const gifMagicBytes = Buffer.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x00, 0x00, 0x00, 0x00]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/file.unknown', 'fake/type', gifMagicBytes);
+      
+      await handlerWithModerateUnknown.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    it('handles WebP detection.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeImageResponse);
+      
+      // WebP magic bytes: RIFF....WEBP
+      const webpMagicBytes = Buffer.from([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/file.fake', 'nonsense/type', webpMagicBytes);
+      
+      await handlerWithModerateUnknown.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    it('detects video type and moderates with video API.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeVideoResponse);
+      
+      // WebM magic bytes
+      const webmMagicBytes = Buffer.from([0x1A, 0x45, 0xDF, 0xA3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/video.fake', 'application/x-fake', webmMagicBytes);
+      
+      await handlerWithModerateUnknown.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    it('rejects unsafe video with fake Content-Type.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockUnsafeVideoNudityResponse);
+      
+      // WebM magic bytes but containing unsafe content
+      const webmMagicBytes = Buffer.from([0x1A, 0x45, 0xDF, 0xA3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/video.fake', 'application/x-hidden-video', webmMagicBytes);
+      
+      await expect(handlerWithModerateUnknown.handle(input)).rejects.toThrow(/nudity/);
+    });
+  });
+
+  describe('RDF/Linked Data text moderation', (): void => {
+    let handlerWithRdfModeration: ModerationOperationHandler;
+
+    beforeEach((): void => {
+      // Create handler with RDF text moderation enabled
+      handlerWithRdfModeration = new ModerationOperationHandler(
+        mockSource,
+        {
+          auditLogEnabled: false,
+          moderateRdfAsText: true,
+        }
+      );
+      jest.advanceTimersByTime(200);
+    });
+
+    it('moderates Turtle content as text when enabled.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeTextResponse);
+      
+      const turtleContent = `
+        @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+        <#me> a foaf:Person ;
+              foaf:name "Alice Smith" ;
+              foaf:bio "I am a software developer" .
+      `;
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/profile.ttl', 'text/turtle', Buffer.from(turtleContent));
+      
+      await handlerWithRdfModeration.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    it('rejects Turtle content with toxic text.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockToxicTextResponse);
+      
+      const turtleContent = `
+        @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+        <#me> a foaf:Person ;
+              foaf:name "Toxic User" ;
+              foaf:bio "This contains very toxic offensive content" .
+      `;
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/profile.ttl', 'text/turtle', Buffer.from(turtleContent));
+      
+      await expect(handlerWithRdfModeration.handle(input)).rejects.toThrow(/toxic/i);
+    });
+
+    it('moderates JSON-LD content as text.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeTextResponse);
+      
+      const jsonldContent = JSON.stringify({
+        "@context": "https://schema.org/",
+        "@type": "Person",
+        "name": "Alice Smith",
+        "description": "A software developer from London"
+      });
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/profile.jsonld', 'application/ld+json', Buffer.from(jsonldContent));
+      
+      await handlerWithRdfModeration.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    it('rejects JSON-LD with inappropriate content.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSexualTextResponse);
+      
+      const jsonldContent = JSON.stringify({
+        "@context": "https://schema.org/",
+        "@type": "Article",
+        "name": "Inappropriate Article",
+        "text": "This contains sexual content that should be flagged"
+      });
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/article.jsonld', 'application/ld+json', Buffer.from(jsonldContent));
+      
+      await expect(handlerWithRdfModeration.handle(input)).rejects.toThrow(/sexual/i);
+    });
+
+    it('moderates RDF/XML content as text.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeTextResponse);
+      
+      const rdfxmlContent = `<?xml version="1.0"?>
+        <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                 xmlns:foaf="http://xmlns.com/foaf/0.1/">
+          <foaf:Person>
+            <foaf:name>Alice Smith</foaf:name>
+            <foaf:bio>I am a friendly person</foaf:bio>
+          </foaf:Person>
+        </rdf:RDF>
+      `;
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/profile.rdf', 'application/rdf+xml', Buffer.from(rdfxmlContent));
+      
+      await handlerWithRdfModeration.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    it('moderates SPARQL queries.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeTextResponse);
+      
+      const sparqlQuery = `
+        PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+        # This is a friendly query to find people
+        SELECT ?name WHERE {
+          ?person a foaf:Person ;
+                  foaf:name ?name .
+          FILTER(CONTAINS(?name, "Alice"))
+        }
+      `;
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/query.sparql', 'application/sparql-query', Buffer.from(sparqlQuery));
+      
+      await handlerWithRdfModeration.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    it('moderates N-Triples content.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeTextResponse);
+      
+      const ntriplesContent = `
+        <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> "Alice Smith" .
+        <http://example.org/alice> <http://xmlns.com/foaf/0.1/bio> "Software developer" .
+      `;
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/data.nt', 'application/n-triples', Buffer.from(ntriplesContent));
+      
+      await handlerWithRdfModeration.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    it('skips RDF moderation when disabled (default).', async(): Promise<void> => {
+      // Set up a mock to check it's NOT called
+      const mockFetch = jest.fn();
+      global.fetch = mockFetch;
+      
+      // Use default handler which has moderateRdfAsText = false
+      const turtleContent = `
+        @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+        <#me> a foaf:Person ;
+              foaf:name "Alice" .
+      `;
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/profile.ttl', 'text/turtle', Buffer.from(turtleContent));
+      
+      // Should pass through without calling API
+      await handler.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('skips moderation for RDF with no meaningful text.', async(): Promise<void> => {
+      // Empty or minimal content
+      const minimalTurtle = `@prefix : <http://example.org/> . :s :p :o .`;
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/minimal.ttl', 'text/turtle', Buffer.from(minimalTurtle));
+      
+      // Should pass through without API call (no strings to extract)
+      await handlerWithRdfModeration.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('extracts text from single-quoted Turtle literals.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeTextResponse);
+      
+      const turtleContent = `
+        @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+        <#me> foaf:name 'Single quoted name' .
+      `;
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/profile.ttl', 'text/turtle', Buffer.from(turtleContent));
+      
+      await handlerWithRdfModeration.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    it('handles API errors gracefully (fail-open).', async(): Promise<void> => {
+      global.fetch = createFailingFetch();
+      
+      const turtleContent = `
+        @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+        <#me> foaf:name "Alice Smith" .
+      `;
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/profile.ttl', 'text/turtle', Buffer.from(turtleContent));
+      
+      // Should allow through on API error
+      await handlerWithRdfModeration.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+    });
+
+    it('moderates SPARQL results JSON format.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeTextResponse);
+      
+      const sparqlResultsJson = JSON.stringify({
+        head: { vars: ["name"] },
+        results: {
+          bindings: [
+            { name: { type: "literal", value: "Alice Smith" } },
+            { name: { type: "literal", value: "Bob Jones" } }
+          ]
+        }
+      });
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/results.json', 'application/sparql-results+json', Buffer.from(sparqlResultsJson));
+      
+      await handlerWithRdfModeration.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    it('moderates SPARQL results XML format.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockSafeTextResponse);
+      
+      const sparqlResultsXml = `<?xml version="1.0"?>
+        <sparql xmlns="http://www.w3.org/2005/sparql-results#">
+          <results>
+            <result>
+              <binding name="name"><literal>Alice Smith</literal></binding>
+            </result>
+          </results>
+        </sparql>
+      `;
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/results.xml', 'application/sparql-results+xml', Buffer.from(sparqlResultsXml));
+      
+      await handlerWithRdfModeration.handle(input);
+      expect(mockSource.handle).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    it('rejects discriminatory content in RDF.', async(): Promise<void> => {
+      global.fetch = createMockFetch(mockDiscriminatoryTextResponse);
+      
+      const turtleContent = `
+        @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+        <#me> foaf:bio "This contains discriminatory hate speech" .
+      `;
+      const input = createMockInput('PUT', 'http://localhost:3009/alice/profile.ttl', 'text/turtle', Buffer.from(turtleContent));
+      
+      await expect(handlerWithRdfModeration.handle(input)).rejects.toThrow(/discriminatory/i);
+    });
+  });
 });

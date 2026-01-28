@@ -219,6 +219,122 @@ export class ModerationOperationHandler extends OperationHandler {
     'video/3gpp2',
   ];
 
+  // Magic byte signatures for content type detection
+  // Maps magic bytes (as hex string prefix) to MIME types
+  private readonly MAGIC_SIGNATURES: Array<{ bytes: number[]; mimeType: string; offset?: number }> = [
+    // Images
+    { bytes: [0xFF, 0xD8, 0xFF], mimeType: 'image/jpeg' },                    // JPEG
+    { bytes: [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A], mimeType: 'image/png' },  // PNG
+    { bytes: [0x47, 0x49, 0x46, 0x38, 0x37, 0x61], mimeType: 'image/gif' },   // GIF87a
+    { bytes: [0x47, 0x49, 0x46, 0x38, 0x39, 0x61], mimeType: 'image/gif' },   // GIF89a
+    { bytes: [0x52, 0x49, 0x46, 0x46], mimeType: 'image/webp' },              // WebP (RIFF container, needs additional check)
+    { bytes: [0x42, 0x4D], mimeType: 'image/bmp' },                           // BMP
+    // Videos
+    { bytes: [0x00, 0x00, 0x00], mimeType: 'video/mp4' },                     // MP4/MOV (ftyp box, variable offset)
+    { bytes: [0x1A, 0x45, 0xDF, 0xA3], mimeType: 'video/webm' },              // WebM/MKV (EBML)
+    { bytes: [0x4F, 0x67, 0x67, 0x53], mimeType: 'video/ogg' },               // OGG
+    { bytes: [0x52, 0x49, 0x46, 0x46], mimeType: 'video/x-msvideo' },         // AVI (RIFF container)
+    { bytes: [0x30, 0x26, 0xB2, 0x75], mimeType: 'video/x-ms-wmv' },          // WMV/ASF
+    { bytes: [0x00, 0x00, 0x01, 0xBA], mimeType: 'video/mpeg' },              // MPEG-PS
+    { bytes: [0x00, 0x00, 0x01, 0xB3], mimeType: 'video/mpeg' },              // MPEG-1/2
+  ];
+
+  // Content types that are allowed to pass through without moderation
+  // These are typically Solid/RDF-related types or other structured data
+  private readonly ALLOWED_PASSTHROUGH_TYPES = [
+    // RDF and Linked Data formats
+    'text/turtle',
+    'application/ld+json',
+    'application/n-triples',
+    'application/n-quads',
+    'application/rdf+xml',
+    'application/sparql-query',
+    'application/sparql-update',
+    'application/sparql-results+json',
+    'application/sparql-results+xml',
+    // Solid-specific
+    'application/x-www-form-urlencoded',
+    'multipart/form-data',
+    // Common safe types
+    'application/octet-stream',  // Binary data (can't moderate anyway)
+    'application/pdf',           // PDFs (would need different API)
+    'application/zip',           // Archives
+    'application/gzip',
+    'application/x-tar',
+    // Audio (not moderated but generally safe)
+    'audio/mpeg',
+    'audio/ogg',
+    'audio/wav',
+    'audio/webm',
+    'audio/flac',
+    'audio/aac',
+  ];
+
+  // Whether to reject unknown content types
+  private readonly rejectUnknownTypes: boolean;
+
+  // Whether to validate file extensions match Content-Type
+  private readonly validateExtensions: boolean;
+
+  // Whether to attempt moderation on unknown content types by detecting actual type
+  private readonly moderateUnknownTypes: boolean;
+
+  // Whether to moderate RDF/Linked Data content as text
+  private readonly moderateRdfAsText: boolean;
+
+  // Extension to MIME type mapping for validation
+  private readonly EXTENSION_TO_MIME: Record<string, string[]> = {
+    // Images
+    '.jpg': ['image/jpeg', 'image/jpg'],
+    '.jpeg': ['image/jpeg', 'image/jpg'],
+    '.png': ['image/png'],
+    '.gif': ['image/gif'],
+    '.webp': ['image/webp'],
+    '.bmp': ['image/bmp'],
+    '.svg': ['image/svg+xml'],
+    '.ico': ['image/x-icon', 'image/vnd.microsoft.icon'],
+    // Videos
+    '.mp4': ['video/mp4'],
+    '.m4v': ['video/mp4'],
+    '.mov': ['video/quicktime'],
+    '.avi': ['video/x-msvideo'],
+    '.wmv': ['video/x-ms-wmv'],
+    '.webm': ['video/webm'],
+    '.ogv': ['video/ogg'],
+    '.3gp': ['video/3gpp'],
+    '.mpeg': ['video/mpeg'],
+    '.mpg': ['video/mpeg'],
+    // Text
+    '.txt': ['text/plain'],
+    '.html': ['text/html'],
+    '.htm': ['text/html'],
+    '.css': ['text/css'],
+    '.csv': ['text/csv'],
+    '.md': ['text/markdown', 'text/x-markdown'],
+    '.xml': ['text/xml', 'application/xml'],
+    '.json': ['application/json'],
+    '.js': ['application/javascript', 'text/javascript'],
+    // RDF/Linked Data
+    '.ttl': ['text/turtle'],
+    '.jsonld': ['application/ld+json'],
+    '.nt': ['application/n-triples'],
+    '.nq': ['application/n-quads'],
+    '.rdf': ['application/rdf+xml'],
+    // Audio
+    '.mp3': ['audio/mpeg'],
+    '.ogg': ['audio/ogg'],
+    '.wav': ['audio/wav'],
+    '.flac': ['audio/flac'],
+    '.aac': ['audio/aac'],
+    '.m4a': ['audio/mp4', 'audio/x-m4a'],
+    // Archives
+    '.zip': ['application/zip'],
+    '.gz': ['application/gzip'],
+    '.tar': ['application/x-tar'],
+    // Documents
+    '.pdf': ['application/pdf'],
+  };
+
   // Audit log file path
   private readonly auditLogPath: string;
   private readonly auditLogEnabled: boolean;
@@ -247,6 +363,10 @@ export class ModerationOperationHandler extends OperationHandler {
     enabledVideoChecks: 'enabledVideoChecks',
     auditLogEnabled: 'auditLogEnabled',
     auditLogPath: 'auditLogPath',
+    rejectUnknownTypes: 'rejectUnknownTypes',
+    validateExtensions: 'validateExtensions',
+    moderateUnknownTypes: 'moderateUnknownTypes',
+    moderateRdfAsText: 'moderateRdfAsText',
   } as const;
 
   /**
@@ -270,6 +390,264 @@ export class ModerationOperationHandler extends OperationHandler {
     } catch {
       return undefined;
     }
+  }
+
+  /**
+   * Extract file extension from a resource path
+   * e.g., "http://localhost:3009/alice/photo.jpg" -> ".jpg"
+   */
+  private extractFileExtension(resourcePath: string): string | undefined {
+    try {
+      const url = new URL(resourcePath);
+      const pathname = url.pathname;
+      const lastDotIndex = pathname.lastIndexOf('.');
+      const lastSlashIndex = pathname.lastIndexOf('/');
+      
+      // Only extract if dot is after the last slash (i.e., in filename, not in path)
+      if (lastDotIndex > lastSlashIndex && lastDotIndex < pathname.length - 1) {
+        return pathname.substring(lastDotIndex).toLowerCase();
+      }
+      return undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Validate that the Content-Type matches the file extension
+   * Returns an error message if validation fails, undefined if valid
+   */
+  private validateExtensionMatchesContentType(
+    resourcePath: string,
+    contentType: string,
+  ): string | undefined {
+    const extension = this.extractFileExtension(resourcePath);
+    
+    if (!extension) {
+      // No extension to validate
+      return undefined;
+    }
+    
+    const allowedMimeTypes = this.EXTENSION_TO_MIME[extension];
+    
+    if (!allowedMimeTypes) {
+      // Unknown extension - can't validate, let it pass
+      return undefined;
+    }
+    
+    if (!allowedMimeTypes.includes(contentType)) {
+      return `File extension '${extension}' does not match Content-Type '${contentType}'. ` +
+             `Expected one of: ${allowedMimeTypes.join(', ')}`;
+    }
+    
+    return undefined;
+  }
+
+  /**
+   * Detect the actual content type from magic bytes in a buffer
+   * Returns the detected MIME type or undefined if not recognized
+   */
+  private detectContentTypeFromMagicBytes(buffer: Buffer): string | undefined {
+    if (buffer.length < 8) {
+      return undefined;
+    }
+
+    for (const sig of this.MAGIC_SIGNATURES) {
+      const offset = sig.offset ?? 0;
+      if (buffer.length < offset + sig.bytes.length) {
+        continue;
+      }
+      
+      let matches = true;
+      for (let i = 0; i < sig.bytes.length; i++) {
+        if (buffer[offset + i] !== sig.bytes[i]) {
+          matches = false;
+          break;
+        }
+      }
+      
+      if (matches) {
+        // Special handling for RIFF container (could be WebP or AVI)
+        if (sig.bytes[0] === 0x52 && sig.bytes[1] === 0x49) { // 'RI'
+          // Check for WEBP at offset 8
+          if (buffer.length >= 12 &&
+              buffer[8] === 0x57 && buffer[9] === 0x45 &&
+              buffer[10] === 0x42 && buffer[11] === 0x50) {
+            return 'image/webp';
+          }
+          // Check for AVI at offset 8
+          if (buffer.length >= 12 &&
+              buffer[8] === 0x41 && buffer[9] === 0x56 &&
+              buffer[10] === 0x49 && buffer[11] === 0x20) {
+            return 'video/x-msvideo';
+          }
+        }
+        
+        // Special handling for MP4/MOV (look for ftyp)
+        if (sig.mimeType === 'video/mp4') {
+          // ftyp box usually at offset 4
+          if (buffer.length >= 8 &&
+              buffer[4] === 0x66 && buffer[5] === 0x74 &&
+              buffer[6] === 0x79 && buffer[7] === 0x70) {
+            return 'video/mp4';
+          }
+          // Also check QuickTime
+          if (buffer.length >= 8 &&
+              buffer[4] === 0x6D && buffer[5] === 0x6F &&
+              buffer[6] === 0x6F && buffer[7] === 0x76) {
+            return 'video/quicktime';
+          }
+          continue; // Don't return video/mp4 just for 0x00 0x00 0x00
+        }
+        
+        return sig.mimeType;
+      }
+    }
+    
+    return undefined;
+  }
+
+  /**
+   * RDF/Linked Data MIME types that can be moderated as text
+   */
+  private readonly RDF_TEXT_TYPES = [
+    'text/turtle',
+    'application/ld+json',
+    'application/n-triples',
+    'application/n-quads',
+    'application/rdf+xml',
+    'application/sparql-query',
+    'application/sparql-update',
+    'application/sparql-results+json',
+    'application/sparql-results+xml',
+  ];
+
+  /**
+   * Check if a content type is an RDF/Linked Data format
+   */
+  private isRdfContentType(contentType: string): boolean {
+    return this.RDF_TEXT_TYPES.includes(contentType);
+  }
+
+  /**
+   * Extract text content from RDF/Linked Data formats for moderation
+   * This extracts string literals, labels, comments, and other textual content
+   */
+  private extractTextFromRdf(content: string, contentType: string): string {
+    const textParts: string[] = [];
+
+    if (contentType === 'text/turtle' || contentType === 'application/n-triples' || contentType === 'application/n-quads') {
+      // Extract string literals from Turtle/N-Triples/N-Quads
+      // Matches: "string"@lang, "string"^^type, or just "string"
+      const literalRegex = /"([^"\\]*(\\.[^"\\]*)*)"/g;
+      let match;
+      while ((match = literalRegex.exec(content)) !== null) {
+        // Unescape common escape sequences
+        const text = match[1]
+          .replace(/\\n/g, '\n')
+          .replace(/\\r/g, '\r')
+          .replace(/\\t/g, '\t')
+          .replace(/\\"/g, '"')
+          .replace(/\\\\/g, '\\');
+        if (text.trim().length > 0) {
+          textParts.push(text);
+        }
+      }
+      // Also extract single-quoted strings (less common but valid in Turtle)
+      const singleQuoteRegex = /'([^'\\]*(\\.[^'\\]*)*)'/g;
+      while ((match = singleQuoteRegex.exec(content)) !== null) {
+        const text = match[1]
+          .replace(/\\n/g, '\n')
+          .replace(/\\r/g, '\r')
+          .replace(/\\t/g, '\t')
+          .replace(/\\'/g, "'")
+          .replace(/\\\\/g, '\\');
+        if (text.trim().length > 0) {
+          textParts.push(text);
+        }
+      }
+    } else if (contentType === 'application/ld+json') {
+      // Extract string values from JSON-LD
+      try {
+        const extractStrings = (obj: unknown): void => {
+          if (typeof obj === 'string') {
+            if (obj.trim().length > 0 && !obj.startsWith('http://') && !obj.startsWith('https://')) {
+              textParts.push(obj);
+            }
+          } else if (Array.isArray(obj)) {
+            obj.forEach(extractStrings);
+          } else if (obj && typeof obj === 'object') {
+            Object.values(obj as Record<string, unknown>).forEach(extractStrings);
+          }
+        };
+        extractStrings(JSON.parse(content));
+      } catch {
+        // If JSON parsing fails, treat the whole thing as text
+        textParts.push(content);
+      }
+    } else if (contentType === 'application/rdf+xml') {
+      // Extract text content from RDF/XML
+      // Simple regex to extract content between tags (not perfect but catches most text)
+      const tagContentRegex = />([^<]+)</g;
+      let match;
+      while ((match = tagContentRegex.exec(content)) !== null) {
+        const text = match[1].trim();
+        if (text.length > 0 && !text.startsWith('http://') && !text.startsWith('https://')) {
+          textParts.push(text);
+        }
+      }
+    } else if (contentType === 'application/sparql-query' || contentType === 'application/sparql-update') {
+      // For SPARQL, extract string literals and the whole query text
+      // String literals in SPARQL use similar syntax to Turtle
+      const literalRegex = /"([^"\\]*(\\.[^"\\]*)*)"/g;
+      let match;
+      while ((match = literalRegex.exec(content)) !== null) {
+        const text = match[1].trim();
+        if (text.length > 0) {
+          textParts.push(text);
+        }
+      }
+      // Also check for comments which might contain offensive text
+      const commentRegex = /#(.*)$/gm;
+      while ((match = commentRegex.exec(content)) !== null) {
+        const text = match[1].trim();
+        if (text.length > 0) {
+          textParts.push(text);
+        }
+      }
+    } else if (contentType === 'application/sparql-results+json') {
+      // Extract string bindings from SPARQL JSON results
+      try {
+        const results = JSON.parse(content);
+        const extractBindings = (obj: unknown): void => {
+          if (obj && typeof obj === 'object') {
+            const record = obj as Record<string, unknown>;
+            if (record.type === 'literal' && typeof record.value === 'string') {
+              textParts.push(record.value);
+            } else {
+              Object.values(record).forEach(extractBindings);
+            }
+          } else if (Array.isArray(obj)) {
+            obj.forEach(extractBindings);
+          }
+        };
+        extractBindings(results);
+      } catch {
+        // If parsing fails, skip
+      }
+    } else if (contentType === 'application/sparql-results+xml') {
+      // Extract literal values from SPARQL XML results
+      const literalRegex = /<literal[^>]*>([^<]*)<\/literal>/g;
+      let match;
+      while ((match = literalRegex.exec(content)) !== null) {
+        const text = match[1].trim();
+        if (text.length > 0) {
+          textParts.push(text);
+        }
+      }
+    }
+
+    return textParts.join('\n');
   }
 
   /**
@@ -325,6 +703,10 @@ export class ModerationOperationHandler extends OperationHandler {
       enabledVideoChecks?: string;
       auditLogEnabled?: boolean;
       auditLogPath?: string;
+      rejectUnknownTypes?: boolean;
+      validateExtensions?: boolean;
+      moderateUnknownTypes?: boolean;
+      moderateRdfAsText?: boolean;
     }
   ) {
     super();
@@ -371,6 +753,18 @@ export class ModerationOperationHandler extends OperationHandler {
     this.auditLogEnabled = options?.auditLogEnabled ?? (process.env.MODERATION_AUDIT_LOG !== 'false');
     this.auditLogPath = options?.auditLogPath ?? process.env.MODERATION_AUDIT_LOG_PATH ?? path.join(process.cwd(), 'moderation-audit.log');
     
+    // Configure rejection of unknown content types - defaults to false for backward compatibility
+    this.rejectUnknownTypes = options?.rejectUnknownTypes ?? (process.env.MODERATION_REJECT_UNKNOWN_TYPES === 'true');
+    
+    // Configure extension validation - defaults to false for backward compatibility
+    this.validateExtensions = options?.validateExtensions ?? (process.env.MODERATION_VALIDATE_EXTENSIONS === 'true');
+    
+    // Configure moderation of unknown types by detecting actual content - defaults to false
+    this.moderateUnknownTypes = options?.moderateUnknownTypes ?? (process.env.MODERATION_MODERATE_UNKNOWN_TYPES === 'true');
+    
+    // Configure moderation of RDF/Linked Data as text - defaults to false
+    this.moderateRdfAsText = options?.moderateRdfAsText ?? (process.env.MODERATION_MODERATE_RDF_AS_TEXT === 'true');
+    
     if (this.auditLogEnabled) {
       // Ensure audit log directory exists
       const logDir = path.dirname(this.auditLogPath);
@@ -386,6 +780,10 @@ export class ModerationOperationHandler extends OperationHandler {
       this.log('info', `Enabled image checks: ${this.config.enabledChecks.join(', ')}`);
       this.log('info', `Enabled text checks: ${this.config.enabledTextChecks.join(', ')}`);
       this.log('info', `Enabled video checks: ${this.config.enabledVideoChecks.join(', ')}`);
+      this.log('info', `Reject unknown content types: ${this.rejectUnknownTypes}`);
+      this.log('info', `Validate file extensions: ${this.validateExtensions}`);
+      this.log('info', `Moderate unknown types by detection: ${this.moderateUnknownTypes}`);
+      this.log('info', `Moderate RDF/Linked Data as text: ${this.moderateRdfAsText}`);
     }, 150);
   }
 
@@ -416,6 +814,25 @@ export class ModerationOperationHandler extends OperationHandler {
     if (method === 'PUT' || method === 'POST' || method === 'PATCH') {
       const contentType = operation.body?.metadata?.contentType;
       this.log('debug', `ContentType: ${contentType}`);
+
+      // Validate file extension matches Content-Type if enabled
+      if (this.validateExtensions && contentType) {
+        const extensionError = this.validateExtensionMatchesContentType(path, contentType);
+        if (extensionError) {
+          this.log('warn', `Extension validation failed: ${extensionError}`);
+          this.writeAuditLog({
+            timestamp: new Date().toISOString(),
+            action: 'REJECT',
+            contentType: 'image',
+            path,
+            pod,
+            agent,
+            mimeType: contentType,
+            reason: extensionError,
+          });
+          throw new BadRequestHttpError(extensionError);
+        }
+      }
 
       // Check if this is an image that can be moderated
       if (contentType && this.SUPPORTED_IMAGE_TYPES.includes(contentType)) {
@@ -483,6 +900,39 @@ export class ModerationOperationHandler extends OperationHandler {
           throw error;
         }
       }
+      // Check if this is RDF/Linked Data that should be moderated as text
+      else if (this.moderateRdfAsText && contentType && this.isRdfContentType(contentType)) {
+        this.log('info', `RDF content detected: ${contentType} at ${path} - moderating as text`);
+        
+        try {
+          const scores = await this.moderateRdfContent(operation.body, contentType, path);
+          this.log('info', `RDF content passed moderation: ${path}`);
+          this.writeAuditLog({
+            timestamp: new Date().toISOString(),
+            action: 'ALLOW',
+            contentType: 'text',
+            path,
+            pod,
+            agent,
+            mimeType: `${contentType} (as text)`,
+            scores,
+          });
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown moderation error';
+          this.log('warn', `RDF content rejected: ${path} - ${errorMessage}`);
+          this.writeAuditLog({
+            timestamp: new Date().toISOString(),
+            action: 'REJECT',
+            contentType: 'text',
+            path,
+            pod,
+            agent,
+            mimeType: `${contentType} (as text)`,
+            reason: errorMessage,
+          });
+          throw error;
+        }
+      }
       // Check if this is video that can be moderated
       else if (contentType && this.SUPPORTED_VIDEO_TYPES.includes(contentType)) {
         this.log('info', `Video detected: ${contentType} at ${path}`);
@@ -514,6 +964,64 @@ export class ModerationOperationHandler extends OperationHandler {
             reason: errorMessage,
           });
           throw error;
+        }
+      }
+      // Attempt to moderate unknown types by detecting actual content type
+      else if (this.moderateUnknownTypes && contentType && 
+               !this.ALLOWED_PASSTHROUGH_TYPES.includes(contentType)) {
+        this.log('info', `Unknown content type: ${contentType} at ${path} - attempting detection`);
+        
+        try {
+          const result = await this.moderateUnknownContent(operation.body, contentType, path);
+          if (result.moderated) {
+            this.log('info', `Unknown content moderated as ${result.detectedType}: ${path}`);
+            this.writeAuditLog({
+              timestamp: new Date().toISOString(),
+              action: 'ALLOW',
+              contentType: result.detectedType === 'image' ? 'image' : 'video',
+              path,
+              pod,
+              agent,
+              mimeType: `${contentType} (detected: ${result.detectedMime})`,
+              scores: result.scores,
+            });
+          } else {
+            this.log('info', `Unknown content not moderatable, passing through: ${path}`);
+          }
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown moderation error';
+          this.log('warn', `Unknown content rejected: ${path} - ${errorMessage}`);
+          this.writeAuditLog({
+            timestamp: new Date().toISOString(),
+            action: 'REJECT',
+            contentType: 'image',
+            path,
+            pod,
+            agent,
+            mimeType: contentType,
+            reason: errorMessage,
+          });
+          throw error;
+        }
+      }
+      // Check if this is an unknown content type that should be rejected
+      else if (this.rejectUnknownTypes && contentType) {
+        // Check if it's in our allowed passthrough types
+        if (!this.ALLOWED_PASSTHROUGH_TYPES.includes(contentType)) {
+          this.log('warn', `Rejected unknown content type: ${contentType} at ${path}`);
+          this.writeAuditLog({
+            timestamp: new Date().toISOString(),
+            action: 'REJECT',
+            contentType: 'image', // Use 'image' as a generic category for unknown
+            path,
+            pod,
+            agent,
+            mimeType: contentType,
+            reason: `Unknown content type: ${contentType}`,
+          });
+          throw new BadRequestHttpError(
+            `Content type '${contentType}' is not allowed. Only known image, text, video, and data formats are permitted.`
+          );
         }
       }
     }
@@ -550,6 +1058,21 @@ export class ModerationOperationHandler extends OperationHandler {
         chunks.push(Buffer.from(chunk));
       }
       const imageBuffer = Buffer.concat(chunks);
+
+      // Verify content type matches actual file content (magic byte detection)
+      const detectedType = this.detectContentTypeFromMagicBytes(imageBuffer);
+      if (detectedType && detectedType !== contentType && detectedType !== 'image/jpg') {
+        // Allow jpeg/jpg mismatch since they're the same format
+        const isJpegMismatch = (contentType === 'image/jpeg' || contentType === 'image/jpg') &&
+                               (detectedType === 'image/jpeg' || detectedType === 'image/jpg');
+        if (!isJpegMismatch) {
+          this.log('warn', `Content-Type mismatch: claimed ${contentType}, detected ${detectedType}`);
+          throw new BadRequestHttpError(
+            `Content-Type mismatch: file signature indicates ${detectedType}, not ${contentType}. ` +
+            `This may be an attempt to bypass content moderation.`
+          );
+        }
+      }
 
       // Create a new readable stream for the source handler
       // (since we consumed the original stream)
@@ -678,6 +1201,73 @@ export class ModerationOperationHandler extends OperationHandler {
     if (result['self-harm']) scores.selfharm = result['self-harm'].prob;
     
     return scores;
+  }
+
+  /**
+   * Moderate RDF/Linked Data content by extracting text and sending to text moderation API
+   */
+  private async moderateRdfContent(
+    body: { data: Readable; metadata: RepresentationMetadata } | undefined,
+    contentType: string,
+    path: string,
+  ): Promise<Record<string, number> | undefined> {
+    this.log('debug', `moderateRdfContent called for ${path}`);
+    
+    // Skip if API not configured
+    if (!this.config.apiUser || !this.config.apiSecret) {
+      this.log('warn', 'Skipping RDF moderation - API credentials not configured');
+      return undefined;
+    }
+
+    if (!body?.data) {
+      this.log('warn', 'No body data to moderate');
+      return undefined;
+    }
+
+    try {
+      // Read the RDF data
+      const chunks: Buffer[] = [];
+      for await (const chunk of body.data) {
+        chunks.push(Buffer.from(chunk));
+      }
+      const rdfBuffer = Buffer.concat(chunks);
+      const rdfContent = rdfBuffer.toString('utf-8');
+
+      // Create a new readable stream for the source handler
+      // (since we consumed the original stream)
+      const newStream = Readable.from(rdfBuffer);
+      body.data = newStream;
+
+      // Extract text content from RDF
+      const extractedText = this.extractTextFromRdf(rdfContent, contentType);
+      
+      // Skip if no meaningful text was extracted
+      if (extractedText.trim().length < 3) {
+        this.log('debug', 'Skipping RDF moderation - no meaningful text extracted');
+        return undefined;
+      }
+
+      this.log('info', `Extracted ${extractedText.length} chars of text from RDF content`);
+
+      // Call SightEngine Text API with extracted text
+      const result = await this.callSightEngineText(extractedText);
+
+      // Check the text moderation result
+      this.checkTextModerationResult(result, path);
+
+      // Return scores for audit logging
+      return this.extractTextScores(result);
+
+    } catch (error: unknown) {
+      if (error instanceof BadRequestHttpError) {
+        throw error;
+      }
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.log('error', `RDF moderation API error: ${errorMessage}`);
+      // On API error, allow the upload (fail-open policy)
+      this.log('warn', 'Allowing upload due to API error (fail-open policy)');
+      return undefined;
+    }
   }
 
   /**
@@ -916,6 +1506,103 @@ export class ModerationOperationHandler extends OperationHandler {
   }
 
   /**
+   * Moderate unknown content by detecting its actual type via magic bytes
+   * Returns whether moderation was performed and what type was detected
+   */
+  private async moderateUnknownContent(
+    body: { data: Readable; metadata: RepresentationMetadata } | undefined,
+    claimedContentType: string,
+    path: string,
+  ): Promise<{ moderated: boolean; detectedType?: 'image' | 'video'; detectedMime?: string; scores?: Record<string, number> }> {
+    this.log('debug', `moderateUnknownContent called for ${path}`);
+    
+    // Skip if API not configured
+    if (!this.config.apiUser || !this.config.apiSecret) {
+      this.log('warn', 'Skipping moderation - API credentials not configured');
+      return { moderated: false };
+    }
+
+    if (!body?.data) {
+      this.log('warn', 'No body data to moderate');
+      return { moderated: false };
+    }
+
+    try {
+      // Read the content data
+      const chunks: Buffer[] = [];
+      for await (const chunk of body.data) {
+        chunks.push(Buffer.from(chunk));
+      }
+      const contentBuffer = Buffer.concat(chunks);
+
+      // Detect actual content type from magic bytes
+      const detectedMime = this.detectContentTypeFromMagicBytes(contentBuffer);
+      
+      if (!detectedMime) {
+        this.log('debug', `Could not detect content type for ${path}, passing through`);
+        // Recreate stream for source handler
+        const newStream = Readable.from(contentBuffer);
+        body.data = newStream;
+        return { moderated: false };
+      }
+
+      this.log('info', `Detected actual type: ${detectedMime} (claimed: ${claimedContentType})`);
+
+      // Recreate stream for source handler (will be consumed by moderation, then recreated again)
+      const newStream = Readable.from(contentBuffer);
+      body.data = newStream;
+
+      // Check if detected type is an image
+      if (this.SUPPORTED_IMAGE_TYPES.includes(detectedMime)) {
+        // Call SightEngine API with the detected type
+        const result = await this.callSightEngine(contentBuffer, detectedMime);
+        this.checkModerationResult(result, path);
+        
+        // Recreate stream again after moderation consumed it
+        body.data = Readable.from(contentBuffer);
+        
+        return { 
+          moderated: true, 
+          detectedType: 'image', 
+          detectedMime,
+          scores: this.extractImageScores(result),
+        };
+      }
+      
+      // Check if detected type is a video
+      if (this.SUPPORTED_VIDEO_TYPES.includes(detectedMime)) {
+        // Call SightEngine Video API
+        const result = await this.callSightEngineVideo(contentBuffer, detectedMime);
+        this.checkVideoModerationResult(result, path);
+        
+        // Recreate stream again after moderation
+        body.data = Readable.from(contentBuffer);
+        
+        return { 
+          moderated: true, 
+          detectedType: 'video', 
+          detectedMime,
+          scores: this.extractVideoScores(result),
+        };
+      }
+
+      // Detected type is not something we can moderate
+      this.log('debug', `Detected type ${detectedMime} is not moderatable`);
+      body.data = Readable.from(contentBuffer);
+      return { moderated: false, detectedMime };
+
+    } catch (error: unknown) {
+      if (error instanceof BadRequestHttpError) {
+        throw error;
+      }
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.log('error', `Error moderating unknown content: ${errorMessage}`);
+      // On error, allow through (fail-open)
+      return { moderated: false };
+    }
+  }
+
+  /**
    * Moderate a video using SightEngine Video API
    */
   private async moderateVideo(
@@ -943,6 +1630,23 @@ export class ModerationOperationHandler extends OperationHandler {
         chunks.push(Buffer.from(chunk));
       }
       const videoBuffer = Buffer.concat(chunks);
+
+      // Verify content type matches actual file content (magic byte detection)
+      const detectedType = this.detectContentTypeFromMagicBytes(videoBuffer);
+      if (detectedType) {
+        // Check if detected type is in our supported video types
+        const isDetectedVideo = this.SUPPORTED_VIDEO_TYPES.includes(detectedType);
+        const isClaimedVideo = this.SUPPORTED_VIDEO_TYPES.includes(contentType);
+        
+        // If we detected a non-video type but they claimed video, reject
+        if (!isDetectedVideo && isClaimedVideo) {
+          this.log('warn', `Content-Type mismatch: claimed ${contentType}, detected ${detectedType}`);
+          throw new BadRequestHttpError(
+            `Content-Type mismatch: file signature indicates ${detectedType}, not ${contentType}. ` +
+            `This may be an attempt to bypass content moderation.`
+          );
+        }
+      }
 
       // Create a new readable stream for the source handler
       // (since we consumed the original stream)
