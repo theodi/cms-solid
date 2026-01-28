@@ -27,7 +27,7 @@
     "moderation",
     "plugin"
   ],
-  "author": "",
+  "author": "Kwaku Kuffour-Duah",
   "license": "ISC",
   "dependencies": {
     "@solid/community-server": "^7.0.0"
