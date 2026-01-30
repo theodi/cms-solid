@@ -1,6 +1,6 @@
 {
   "name": "@solid/content-moderation-sightengine",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Content moderation plugin for Community Solid Server using SightEngine API",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
