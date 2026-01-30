@@ -1,7 +1,9 @@
 {
   "@context": [
     "https://linkedsoftwaredependencies.org/bundles/npm/@solid/community-server/^7.0.0/components/context.jsonld",
-    "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/^1.0.0/components/context.jsonld"
+    {
+      "scms": "https://linkedsoftwaredependencies.org/bundles/npm/@solid/content-moderation-sightengine/"
+    }
   ],
   "import": [
     "css:config/app/init/initialize-intro.json",
@@ -40,8 +42,8 @@
     {
       "comment": "Create a moderation wrapper around the default operation handler for testing",
       "@id": "urn:solid-server:default:ModerationOperationHandler",
-      "@type": "cms-solid:ModerationOperationHandler",
-      "cms-solid:ModerationOperationHandler#source": {
+      "@type": "scms:ModerationOperationHandler",
+      "scms:ModerationOperationHandler#source": {
         "@id": "urn:solid-server:default:OperationHandler"
       }
     }

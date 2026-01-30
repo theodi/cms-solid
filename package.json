@@ -1,17 +1,20 @@
 {
-  "name": "cms-solid",
+  "name": "@solid/content-moderation-sightengine",
   "version": "1.0.0",
-  "description": "Moderation plugin for Community Solid Server",
+  "description": "Content moderation plugin for Community Solid Server using SightEngine API",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "lsd:module": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid",
+  "lsd:module": "https://linkedsoftwaredependencies.org/bundles/npm/@solid/content-moderation-sightengine",
   "lsd:components": "components/components.jsonld",
   "lsd:contexts": {
-    "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/^1.0.0/components/context.jsonld": "components/context.jsonld"
+    "https://linkedsoftwaredependencies.org/bundles/npm/@solid/content-moderation-sightengine/^1.0.0/components/context.jsonld": "components/context.jsonld"
   },
   "lsd:importPaths": {
-    "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/^1.0.0/components/": "components/",
-    "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/^1.0.0/config/": "config/"
+    "https://linkedsoftwaredependencies.org/bundles/npm/@solid/content-moderation-sightengine/^1.0.0/components/": "components/",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@solid/content-moderation-sightengine/^1.0.0/config/": "config/"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsc",

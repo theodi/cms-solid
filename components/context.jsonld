@@ -3,7 +3,7 @@
     "https://linkedsoftwaredependencies.org/bundles/npm/componentsjs/^5.0.0/components/context.jsonld",
     "https://linkedsoftwaredependencies.org/bundles/npm/@solid/community-server/^7.0.0/components/context.jsonld",
     {
-      "cms-solid": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/"
+      "scms": "https://linkedsoftwaredependencies.org/bundles/npm/@solid/content-moderation-sightengine/"
     }
   ]
 }
