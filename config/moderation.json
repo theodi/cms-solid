@@ -1,7 +1,11 @@
 {
   "@context": [
     "https://linkedsoftwaredependencies.org/bundles/npm/componentsjs/^5.0.0/components/context.jsonld",
-    "https://linkedsoftwaredependencies.org/bundles/npm/@solid/community-server/^7.0.0/components/context.jsonld"
+    "https://linkedsoftwaredependencies.org/bundles/npm/@solid/community-server/^7.0.0/components/context.jsonld",
+    {
+      "scms": "https://linkedsoftwaredependencies.org/bundles/npm/@solid/content-moderation-sightengine/",
+      "files-scms": "https://linkedsoftwaredependencies.org/bundles/npm/@solid/content-moderation-sightengine/^1.0.0/"
+    }
   ],
   "import": [
     "css:config/app/main/default.json",
@@ -37,13 +41,13 @@
     "css:config/util/resource-locker/file.json",
     "css:config/util/variables/default.json",
 
-    "files-cms-solid:components/components.jsonld"
+    "files-scms:components/components.jsonld"
   ],
   "@graph": [
     {
       "comment": "Wrap the default operation handler with the moderation handler",
       "@id": "urn:solid-server:default:ModerationOperationHandler",
-      "@type": "cms-solid:ModerationOperationHandler",
+      "@type": "scms:ModerationOperationHandler",
       "source": {
         "@id": "urn:solid-server:default:OperationHandler"
       },

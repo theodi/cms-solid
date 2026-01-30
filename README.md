@@ -54,7 +54,7 @@ Request Flow:
    ```bash
    npm link
    cd /path/to/CommunitySolidServer
-   npm link cms-solid
+   npm link @solid/content-moderation-sightengine
    ```
 
 3. **Set up SightEngine API credentials:**
@@ -76,7 +76,9 @@ Request Flow:
 
 ## Configuration
 
-### Basic Configuration (config/moderation.json)
+### Minimal Configuration (config/moderation.json)
+
+This is a minimal configuration that uses default thresholds. For a full production configuration with all options, see the [Full Configuration Example](#full-configuration-example) below.
 
 ```json
 {
@@ -84,16 +86,12 @@ Request Flow:
     "https://linkedsoftwaredependencies.org/bundles/npm/componentsjs/^5.0.0/components/context.jsonld",
     "https://linkedsoftwaredependencies.org/bundles/npm/@solid/community-server/^7.0.0/components/context.jsonld",
     {
-      "cms-solid": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/",
-      "nudityThreshold": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#nudityThreshold" },
-      "violenceThreshold": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#violenceThreshold" },
-      "weaponThreshold": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#weaponThreshold" },
-      "enabledChecks": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#enabledChecks" }
+      "scms": "https://linkedsoftwaredependencies.org/bundles/npm/@solid/content-moderation-sightengine/"
     }
   ],
   "import": [
-    "css:config/app/init/initialize-intro.json",
     "css:config/app/main/default.json",
+    "css:config/app/init/default.json",
     "css:config/app/variables/default.json",
     "css:config/http/handler/default.json",
     "css:config/http/middleware/default.json",
@@ -118,33 +116,21 @@ Request Flow:
     "css:config/ldp/metadata-parser/default.json",
     "css:config/ldp/metadata-writer/default.json",
     "css:config/ldp/modes/default.json",
-    "css:config/storage/backend/memory.json",
+    "css:config/storage/backend/file.json",
     "css:config/storage/key-value/resource-store.json",
-    "css:config/storage/location/root.json",
+    "css:config/storage/location/pod.json",
     "css:config/storage/middleware/default.json",
     "css:config/util/auxiliary/acl.json",
     "css:config/util/identifiers/suffix.json",
     "css:config/util/index/default.json",
     "css:config/util/logging/winston.json",
     "css:config/util/representation-conversion/default.json",
-    "css:config/util/resource-locker/memory.json",
+    "css:config/util/resource-locker/file.json",
     "css:config/util/variables/default.json"
   ],
   "@graph": [
     {
-      "comment": "Create moderation handler with custom thresholds",
-      "@id": "urn:solid-server:moderation:ModerationOperationHandler",
-      "@type": "cms-solid:ModerationOperationHandler",
-      "cms-solid:ModerationOperationHandler#source": {
-        "@id": "urn:solid-server:default:OperationHandler"
-      },
-      "nudityThreshold": 0.7,
-      "violenceThreshold": 0.6,
-      "weaponThreshold": 0.4,
-      "enabledChecks": "nudity,gore,wad,offensive,self-harm"
-    },
-    {
-      "comment": "Wire moderation handler into the LDP handler chain",
+      "comment": "The main entry point into the main Solid behaviour - wired with moderation",
       "@id": "urn:solid-server:default:LdpHandler",
       "@type": "ParsingHttpHandler",
       "args_requestParser": { "@id": "urn:solid-server:default:RequestParser" },
@@ -161,8 +147,16 @@ Request Flow:
           "args_credentialsExtractor": { "@id": "urn:solid-server:default:CredentialsExtractor" },
           "args_modesExtractor": { "@id": "urn:solid-server:default:ModesExtractor" },
           "args_permissionReader": { "@id": "urn:solid-server:default:PermissionReader" },
-          "args_operationHandler": { "@id": "urn:solid-server:moderation:ModerationOperationHandler" }
+          "args_operationHandler": { "@id": "urn:solid-server:default:ModerationOperationHandler" }
         }
+      }
+    },
+    {
+      "comment": "Moderation handler with default thresholds",
+      "@id": "urn:solid-server:default:ModerationOperationHandler",
+      "@type": "scms:ModerationOperationHandler",
+      "scms:ModerationOperationHandler#source": {
+        "@id": "urn:solid-server:default:OperationHandler"
       }
     }
   ]
@@ -260,7 +254,7 @@ For maximum security, enable all options:
 ```json
 {
   "@id": "urn:solid-server:default:ModerationOperationHandler",
-  "@type": "cms-solid:ModerationOperationHandler",
+  "@type": "scms:ModerationOperationHandler",
   "source": { "@id": "urn:solid-server:default:OperationHandler" },
   "rejectUnknownTypes": true,
   "validateExtensions": true,
@@ -480,7 +474,7 @@ afterAll(async () => {
 
 ## Full Configuration Example
 
-The following is a complete working configuration with all image, text, and video thresholds configured:
+The following is the actual working configuration used in production. This example uses file-based storage with pod locations and includes all security options enabled:
 
 ```json
 {
@@ -488,30 +482,12 @@ The following is a complete working configuration with all image, text, and vide
     "https://linkedsoftwaredependencies.org/bundles/npm/componentsjs/^5.0.0/components/context.jsonld",
     "https://linkedsoftwaredependencies.org/bundles/npm/@solid/community-server/^7.0.0/components/context.jsonld",
     {
-      "cms-solid": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/",
-      "nudityThreshold": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#nudityThreshold" },
-      "violenceThreshold": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#violenceThreshold" },
-      "weaponThreshold": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#weaponThreshold" },
-      "alcoholThreshold": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#alcoholThreshold" },
-      "drugsThreshold": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#drugsThreshold" },
-      "offensiveThreshold": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#offensiveThreshold" },
-      "selfharmThreshold": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#selfharmThreshold" },
-      "gamblingThreshold": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#gamblingThreshold" },
-      "tobaccoThreshold": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#tobaccoThreshold" },
-      "textSexualThreshold": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textSexualThreshold" },
-      "textDiscriminatoryThreshold": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textDiscriminatoryThreshold" },
-      "textInsultingThreshold": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textInsultingThreshold" },
-      "textViolentThreshold": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textViolentThreshold" },
-      "textToxicThreshold": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textToxicThreshold" },
-      "textSelfharmThreshold": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#textSelfharmThreshold" },
-      "enabledChecks": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#enabledChecks" },
-      "enabledTextChecks": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#enabledTextChecks" },
-      "enabledVideoChecks": { "@id": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/ModerationOperationHandler#enabledVideoChecks" }
+      "scms": "https://linkedsoftwaredependencies.org/bundles/npm/@solid/content-moderation-sightengine/"
     }
   ],
   "import": [
-    "css:config/app/init/initialize-intro.json",
     "css:config/app/main/default.json",
+    "css:config/app/init/default.json",
     "css:config/app/variables/default.json",
     "css:config/http/handler/default.json",
     "css:config/http/middleware/default.json",
@@ -536,47 +512,21 @@ The following is a complete working configuration with all image, text, and vide
     "css:config/ldp/metadata-parser/default.json",
     "css:config/ldp/metadata-writer/default.json",
     "css:config/ldp/modes/default.json",
-    "css:config/storage/backend/memory.json",
+    "css:config/storage/backend/file.json",
     "css:config/storage/key-value/resource-store.json",
-    "css:config/storage/location/root.json",
+    "css:config/storage/location/pod.json",
     "css:config/storage/middleware/default.json",
     "css:config/util/auxiliary/acl.json",
     "css:config/util/identifiers/suffix.json",
     "css:config/util/index/default.json",
     "css:config/util/logging/winston.json",
     "css:config/util/representation-conversion/default.json",
-    "css:config/util/resource-locker/memory.json",
+    "css:config/util/resource-locker/file.json",
     "css:config/util/variables/default.json"
   ],
   "@graph": [
     {
-      "comment": "Create moderation handler with custom thresholds",
-      "@id": "urn:solid-server:moderation:ModerationOperationHandler",
-      "@type": "cms-solid:ModerationOperationHandler",
-      "cms-solid:ModerationOperationHandler#source": {
-        "@id": "urn:solid-server:default:OperationHandler"
-      },
-      "nudityThreshold": 0.7,
-      "violenceThreshold": 0.6,
-      "weaponThreshold": 0.4,
-      "alcoholThreshold": 0.9,
-      "drugsThreshold": 0.6,
-      "offensiveThreshold": 0.5,
-      "selfharmThreshold": 0.2,
-      "gamblingThreshold": 0.5,
-      "tobaccoThreshold": 0.5,
-      "textSexualThreshold": 0.5,
-      "textDiscriminatoryThreshold": 0.5,
-      "textInsultingThreshold": 0.5,
-      "textViolentThreshold": 0.5,
-      "textToxicThreshold": 0.5,
-      "textSelfharmThreshold": 0.3,
-      "enabledChecks": "nudity,gore,wad,offensive,self-harm",
-      "enabledTextChecks": "sexual,discriminatory,insulting,violent,toxic,self-harm,personal",
-      "enabledVideoChecks": "nudity,gore,wad,offensive,self-harm,gambling,tobacco"
-    },
-    {
-      "comment": "Wire moderation handler into the LDP handler chain",
+      "comment": "The main entry point into the main Solid behaviour - wired with moderation",
       "@id": "urn:solid-server:default:LdpHandler",
       "@type": "ParsingHttpHandler",
       "args_requestParser": { "@id": "urn:solid-server:default:RequestParser" },
@@ -593,9 +543,45 @@ The following is a complete working configuration with all image, text, and vide
           "args_credentialsExtractor": { "@id": "urn:solid-server:default:CredentialsExtractor" },
           "args_modesExtractor": { "@id": "urn:solid-server:default:ModesExtractor" },
           "args_permissionReader": { "@id": "urn:solid-server:default:PermissionReader" },
-          "args_operationHandler": { "@id": "urn:solid-server:moderation:ModerationOperationHandler" }
+          "args_operationHandler": { "@id": "urn:solid-server:default:ModerationOperationHandler" }
         }
       }
+    },
+    {
+      "comment": "Moderation handler wrapping the default operation handler with custom thresholds",
+      "@id": "urn:solid-server:default:ModerationOperationHandler",
+      "@type": "scms:ModerationOperationHandler",
+      "scms:ModerationOperationHandler#source": {
+        "@id": "urn:solid-server:default:OperationHandler"
+      },
+
+      "scms:ModerationOperationHandler#nudityThreshold": 0.7,
+      "scms:ModerationOperationHandler#violenceThreshold": 0.6,
+      "scms:ModerationOperationHandler#weaponThreshold": 0.5,
+      "scms:ModerationOperationHandler#alcoholThreshold": 0.8,
+      "scms:ModerationOperationHandler#drugsThreshold": 0.5,
+      "scms:ModerationOperationHandler#offensiveThreshold": 0.5,
+      "scms:ModerationOperationHandler#selfharmThreshold": 0.3,
+      "scms:ModerationOperationHandler#gamblingThreshold": 0.5,
+      "scms:ModerationOperationHandler#tobaccoThreshold": 0.5,
+
+      "scms:ModerationOperationHandler#textSexualThreshold": 0.5,
+      "scms:ModerationOperationHandler#textDiscriminatoryThreshold": 0.5,
+      "scms:ModerationOperationHandler#textInsultingThreshold": 0.5,
+      "scms:ModerationOperationHandler#textViolentThreshold": 0.5,
+      "scms:ModerationOperationHandler#textToxicThreshold": 0.5,
+      "scms:ModerationOperationHandler#textSelfharmThreshold": 0.3,
+
+      "scms:ModerationOperationHandler#enabledChecks": "nudity,gore,wad,offensive",
+      "scms:ModerationOperationHandler#enabledTextChecks": "sexual,discriminatory,insulting,violent,toxic,self-harm,personal",
+      "scms:ModerationOperationHandler#enabledVideoChecks": "nudity,gore,wad,offensive,self-harm,gambling,tobacco",
+
+      "scms:ModerationOperationHandler#rejectUnknownTypes": true,
+      "scms:ModerationOperationHandler#validateExtensions": true,
+      "scms:ModerationOperationHandler#moderateUnknownTypes": true,
+      "scms:ModerationOperationHandler#moderateRdfAsText": true,
+
+      "scms:ModerationOperationHandler#auditLogPath": "./moderation-audit.log"
     }
   ]
 }
@@ -605,10 +591,12 @@ The following is a complete working configuration with all image, text, and vide
 
 This configuration:
 
-1. **Defines shorthand aliases** in `@context` for all threshold parameters, making them easier to use in the `@graph`
-2. **Imports individual CSS component files** instead of `css:config/default.json` for precise control
-3. **Creates a moderation handler** with custom thresholds for all content types
-4. **Rewires the LdpHandler** to route requests through the moderation handler
+1. **Uses full prefixed parameter names** like `scms:ModerationOperationHandler#nudityThreshold` for explicit configuration
+2. **Imports individual CSS component files** for precise control over server behavior
+3. **Uses file-based storage** (`file.json`, `pod.json`, `file.json` for locker) for persistent data
+4. **Enables all security options** to protect against MIME type bypass attacks
+5. **Configures audit logging** to track all moderation decisions
+6. **Rewires the LdpHandler** to route requests through the moderation handler
 
 ### Threshold Values Explained
 
@@ -616,10 +604,10 @@ This configuration:
 |----------|-----------|-------|---------|
 | **Image** | `nudityThreshold` | 0.7 | More permissive - only blocks explicit nudity |
 | **Image** | `violenceThreshold` | 0.6 | Moderate strictness for gore/violence |
-| **Image** | `weaponThreshold` | 0.4 | Stricter - blocks most weapon imagery |
-| **Image** | `alcoholThreshold` | 0.9 | Very permissive - allows most alcohol content |
-| **Image** | `drugsThreshold` | 0.6 | Moderate strictness |
-| **Image** | `selfharmThreshold` | 0.2 | Very strict - blocks most self-harm content |
+| **Image** | `weaponThreshold` | 0.5 | Default strictness for weapons |
+| **Image** | `alcoholThreshold` | 0.8 | Permissive - allows most alcohol content |
+| **Image** | `drugsThreshold` | 0.5 | Default strictness |
+| **Image** | `selfharmThreshold` | 0.3 | Strict - blocks most self-harm content |
 | **Text** | `textSexualThreshold` | 0.5 | Default strictness |
 | **Text** | `textDiscriminatoryThreshold` | 0.5 | Default strictness |
 | **Text** | `textInsultingThreshold` | 0.5 | Default strictness |
@@ -639,8 +627,8 @@ node bin/server.js -c config/moderation.json -f ./data/ -p 3009
 You should see output like:
 ```
 [ModerationOperationHandler] SightEngine API configured
-[ModerationOperationHandler] Configured thresholds: nudity=0.7, violence=0.6, weapon=0.4, alcohol=0.9, drugs=0.6, offensive=0.5, selfharm=0.2, gambling=0.5, tobacco=0.5
-[ModerationOperationHandler] Enabled image checks: nudity, gore, wad, offensive, self-harm
+[ModerationOperationHandler] Configured thresholds: nudity=0.7, violence=0.6, weapon=0.5, alcohol=0.8, drugs=0.5, offensive=0.5, selfharm=0.3, gambling=0.5, tobacco=0.5
+[ModerationOperationHandler] Enabled image checks: nudity, gore, wad, offensive
 [ModerationOperationHandler] Enabled text checks: sexual, discriminatory, insulting, violent, toxic, self-harm, personal
 [ModerationOperationHandler] Enabled video checks: nudity, gore, wad, offensive, self-harm, gambling, tobacco
 ```
@@ -828,7 +816,7 @@ describe('Moderation Server', (): void => {
     "https://linkedsoftwaredependencies.org/bundles/npm/componentsjs/^5.0.0/components/context.jsonld",
     "https://linkedsoftwaredependencies.org/bundles/npm/@solid/community-server/^7.0.0/components/context.jsonld",
     {
-      "cms-solid": "https://linkedsoftwaredependencies.org/bundles/npm/cms-solid/"
+      "scms": "https://linkedsoftwaredependencies.org/bundles/npm/@solid/content-moderation-sightengine/"
     }
   ],
   "import": [
@@ -862,8 +850,8 @@ describe('Moderation Server', (): void => {
     {
       "comment": "Test moderation handler with low thresholds for testing",
       "@id": "urn:solid-server:test:ModerationHandler",
-      "@type": "cms-solid:ModerationOperationHandler",
-      "cms-solid:ModerationOperationHandler#source": {
+      "@type": "scms:ModerationOperationHandler",
+      "scms:ModerationOperationHandler#source": {
         "@id": "urn:solid-server:default:OperationHandler"
       }
     }
