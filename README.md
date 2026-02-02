@@ -74,6 +74,91 @@ Request Flow:
      node bin/server.js -c config/moderation.json -f data/ -p 3009
    ```
 
+   **Alternatively, use an override configuration:**
+   
+   If you want to use the default CSS configuration and only override specific settings for moderation, you can use multiple `-c` flags:
+   ```bash
+   community-solid-server -c config/default.json -c config/moderation-override.json
+   ```
+
+   Example `config/moderation-override.json`:
+   ```json
+   {
+     "@context": [
+       "https://linkedsoftwaredependencies.org/bundles/npm/componentsjs/^5.0.0/components/context.jsonld",
+       "https://linkedsoftwaredependencies.org/bundles/npm/@solid/community-server/^7.0.0/components/context.jsonld",
+       {
+         "scms": "https://linkedsoftwaredependencies.org/bundles/npm/@solid/content-moderation-sightengine/"
+       }
+     ],
+     "@graph": [
+       {
+         "comment": "Override the LdpHandler to wrap with moderation",
+         "@type": "Override",
+         "overrideInstance": {
+           "@id": "urn:solid-server:default:LdpHandler"
+         },
+         "overrideParameters": {
+           "@type": "ParsingHttpHandler",
+           "args_requestParser": { "@id": "urn:solid-server:default:RequestParser" },
+           "args_errorHandler": { "@id": "urn:solid-server:default:ErrorHandler" },
+           "args_responseWriter": { "@id": "urn:solid-server:default:ResponseWriter" },
+           "args_operationHandler": {
+             "@type": "AuthorizingHttpHandler",
+             "args_credentialsExtractor": { "@id": "urn:solid-server:default:CredentialsExtractor" },
+             "args_modesExtractor": { "@id": "urn:solid-server:default:ModesExtractor" },
+             "args_permissionReader": { "@id": "urn:solid-server:default:PermissionReader" },
+             "args_authorizer": { "@id": "urn:solid-server:default:Authorizer" },
+             "args_operationHandler": {
+               "@type": "WacAllowHttpHandler",
+               "args_credentialsExtractor": { "@id": "urn:solid-server:default:CredentialsExtractor" },
+               "args_modesExtractor": { "@id": "urn:solid-server:default:ModesExtractor" },
+               "args_permissionReader": { "@id": "urn:solid-server:default:PermissionReader" },
+               "args_operationHandler": { "@id": "urn:solid-server:default:ModerationOperationHandler" }
+             }
+           }
+         }
+       },
+       {
+         "comment": "Moderation handler wrapping the default operation handler with custom thresholds",
+         "@id": "urn:solid-server:default:ModerationOperationHandler",
+         "@type": "scms:ModerationOperationHandler",
+         "scms:ModerationOperationHandler#source": {
+           "@id": "urn:solid-server:default:OperationHandler"
+         },
+
+         "scms:ModerationOperationHandler#nudityThreshold": 0.7,
+         "scms:ModerationOperationHandler#violenceThreshold": 0.6,
+         "scms:ModerationOperationHandler#weaponThreshold": 0.5,
+         "scms:ModerationOperationHandler#alcoholThreshold": 0.8,
+         "scms:ModerationOperationHandler#drugsThreshold": 0.5,
+         "scms:ModerationOperationHandler#offensiveThreshold": 0.5,
+         "scms:ModerationOperationHandler#selfharmThreshold": 0.3,
+         "scms:ModerationOperationHandler#gamblingThreshold": 0.5,
+         "scms:ModerationOperationHandler#tobaccoThreshold": 0.5,
+
+         "scms:ModerationOperationHandler#textSexualThreshold": 0.5,
+         "scms:ModerationOperationHandler#textDiscriminatoryThreshold": 0.5,
+         "scms:ModerationOperationHandler#textInsultingThreshold": 0.5,
+         "scms:ModerationOperationHandler#textViolentThreshold": 0.5,
+         "scms:ModerationOperationHandler#textToxicThreshold": 0.5,
+         "scms:ModerationOperationHandler#textSelfharmThreshold": 0.3,
+
+         "scms:ModerationOperationHandler#enabledChecks": "nudity,gore,wad,offensive",
+         "scms:ModerationOperationHandler#enabledTextChecks": "sexual,discriminatory,insulting,violent,toxic,self-harm,personal",
+         "scms:ModerationOperationHandler#enabledVideoChecks": "nudity,gore,wad,offensive,self-harm,gambling,tobacco",
+
+         "scms:ModerationOperationHandler#rejectUnknownTypes": true,
+         "scms:ModerationOperationHandler#validateExtensions": true,
+         "scms:ModerationOperationHandler#moderateUnknownTypes": true,
+         "scms:ModerationOperationHandler#moderateRdfAsText": true,
+
+         "scms:ModerationOperationHandler#auditLogPath": "./moderation-audit.log"
+       }
+     ]
+   }
+   ```
+
 ## Configuration
 
 ### Minimal Configuration (config/moderation.json)
