@@ -1097,3 +1097,6 @@ open coverage/lcov-report/index.html
 3. **Use `fields` with `keyRaw`/`value`** for passing object arguments to constructors
 4. **Import individual component files** instead of aggregate configs when overriding components
 5. **Configuration priority**: Components.js config > Environment variables > Defaults
+
+## Future Consideration
+- Add support for custom moderation providers via a common interface
