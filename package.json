@@ -31,7 +31,7 @@
     "plugin"
   ],
   "author": "Kwaku Kuffour-Duah",
-  "license": "ISC",
+  "license": "MIT OR Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/theodi/cms-solid"
